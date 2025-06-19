@@ -1,4 +1,4 @@
-#include <iostream>
+ #include <iostream>
 #include <string>
 #include <vector>
 #include <algorithm>
@@ -33,20 +33,36 @@ private:
     string database;
 
 public:
-    Database(const string& server, const string& username, 
-             const string& password, const string& database) 
-        : server(server), username(username), password(password), database(database) {
-        try {
-            driver = sql::mysql::get_mysql_driver_instance();
-            con = driver->connect(server, username, password);
-            con->setSchema(database);
-            cout << "Connected to MySQL database successfully!" << endl;
-        } catch (sql::SQLException &e) {
-            cerr << "SQL Error: " << e.what() << endl;
-            cerr << "MySQL error code: " << e.getErrorCode() << endl;
-            cerr << "SQLState: " << e.getSQLState() << endl;
+ Database::Database(const string& server, const string& username, 
+                 const string& password, const string& database) 
+    : server(server), username(username), password(password), database(database) {
+    try {
+        // Create connection
+        driver = sql::mysql::get_mysql_driver_instance();
+        con = driver->connect(server, username, password);
+        
+        // Verify connection
+        if (!con->isValid()) {
+            throw sql::SQLException("Connection is not valid");
         }
+        
+        // Select database
+        con->setSchema(database);
+        
+        // Test connection with a simple query
+        sql::Statement* stmt = con->createStatement();
+        stmt->execute("SELECT 1");
+        delete stmt;
+        
+        cout << "Successfully connected to MySQL database!" << endl;
+    } catch (sql::SQLException &e) {
+        cerr << "MySQL Connection Error:" << endl;
+        cerr << "Error message: " << e.what() << endl;
+        cerr << "Error code: " << e.getErrorCode() << endl;
+        cerr << "SQLState: " << e.getSQLState() << endl;
+        throw; // Re-throw to prevent invalid connections
     }
+}
 
     ~Database() {
         if (con) {
@@ -749,8 +765,25 @@ void displayAdminMenu() {
 // Main function
 int main() {
     // Initialize database connection
-    Database db("tcp://127.0.0.1:3306", "root", "2603", "library_db");
-    
+   try {
+        // Connection parameters
+        string server = "tcp://127.0.0.1:3306"; // or "localhost"
+        string username = "root";
+        string password = "2603"; // Use your MySQL root password
+        string database = "library_db";
+        
+        // Create database connection
+        Database db(server, username, password, database);
+        
+        // Create library instance
+        Library library(&db);
+        
+        // Rest of your application code...
+        
+    } catch (const exception& e) {
+        cerr << "Fatal error: " << e.what() << endl;
+        return 1;
+    }
     // Create Library instance
     Library library(&db);
     
